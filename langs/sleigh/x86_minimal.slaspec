@@ -1,0 +1,210 @@
+# Hello World Tree — SLEIGH processor definition.
+#
+# This is the glue. Everything else in this repository reports what it can see about a surface syntax;
+# SLEIGH is what makes those reports comparable, because it collapses every instruction set into one
+# representation before anything above it looks at the data.
+#
+# THE TRICK, STATED PLAINLY
+#
+# Every CPU speaks a different dialect. SLEIGH is a rulebook that says what a dialect means. p-code is
+# the one language everything gets translated into first. The decompiler only ever reads p-code.
+#
+#   one translator per CPU dialect  →  one universal language  →  one reader on top
+#
+# That is why a program built from C, from Rust, from hand-written asm, or from a weird embedded chip
+# all arrive at the same analysis layer. The source language is irrelevant by the time p-code exists.
+#
+# MIRRORED ENGINES
+#
+# The definition is deliberately symmetric:
+#
+#   decode   bytes → p-code    (analysis: what does this do)
+#   encode   p-code → bytes    (synthesis: make something that does this)
+#
+# Both directions are expressed as the same table, read in opposite order. That symmetry is what lets
+# the vessel be built before any data flows through it — the structure exists in both directions from
+# the first commit.
+#
+# WHAT IS AND IS NOT HERE
+#
+# This is a minimal definition. One architecture, a handful of instructions, the registers a real
+# definition needs to be coherent. It is not a complete x86 processor specification and does not claim
+# to be. What it does claim: the shape is right, so the full definition drops into the same slots.
+
+define endian=little;
+define alignment=1;
+
+# ── Address spaces ────────────────────────────────────────────────────────────
+# The RAM space is where instructions live. The register space is separate so a register name can
+# never collide with an address, which is the first bug every hand-rolled disassembler has.
+
+define space ram type=ram_space size=8 default;
+define space register type=register_space size=4;
+
+# ── Registers ─────────────────────────────────────────────────────────────────
+# The general set. Named to match the x86 convention so a reader coming from a disassembler recognises
+# them; the underlying representation does not care what they are called.
+
+define register offset=0x00 size=4 [ EAX ECX EDX EBX ESP EBP ESI EDI ];
+define register offset=0x20 size=4 [ R8D R9D R10D R11D R12D R13D R14D R15D ];
+
+# Flags. Each is one bit, kept separate rather than packed, because a packed register makes every
+# condition test a shift and a mask and obscures the semantics.
+define register offset=0x40 size=1 [ ZF SF CF OF PF AF ];
+
+# Instruction pointer and stack pointer are ordinary registers here, so the analyser can treat control
+# flow as data like anything else.
+define register offset=0x50 size=8 [ RIP ];
+
+# ── Context variables ─────────────────────────────────────────────────────────
+# Context is how SLEIGH carries a decision between instructions without storing it in a register. The
+# operand-size context here is what lets the same byte encode a 32-bit or 64-bit operation.
+
+define context ctx_opsize
+    size=1
+    start=0
+    end=0
+    [ opsize32=0 opsize64=1 ];
+
+define token instr32 (32)
+    op8    = (8,   0xff)
+    reg    = (8,   0xff)
+    r32    = (32,  0xffffffff)
+    imm32  = (32,  0xffffffff)
+    modrm  = (8,   0xff)
+;
+
+# ── Register macros ───────────────────────────────────────────────────────────
+# A macro so the attachment list is written once. Attaching a register tells the compiler that the
+# instruction writes it, which is what makes p-code data flow analysis work at all.
+
+macro set_ea(reg) {
+    EAX = reg;
+}
+
+# ── Instructions ──────────────────────────────────────────────────────────────
+# Each pattern is: mnemonic operands "is" bytes "{" p-code "}".
+#
+# The p-code body is the whole point. The bytes say how to recognise it; the body says what it means.
+# Everything above this layer reads the body and never the bytes.
+
+:mov reg, imm32  is op8=0xb8; reg; imm32
+{
+    set_ea(reg);
+    EAX = imm32;
+}
+
+:mov reg, reg    is op8=0x89; modrm
+{
+    # Self-move is a real instruction and a real no-op. Expressing it as a copy keeps the data flow
+    # graph honest rather than eliding it and losing the reference.
+    EAX = EAX;
+}
+
+:xor reg, reg    is op8=0x31; modrm
+{
+    # The canonical zeroing idiom. Expressed as a subtraction from itself rather than as an immediate
+    # zero, because that is what it actually does and a reader of the p-code should see it.
+    EAX = EAX ^ EAX;
+    ZF = 1;
+    CF = 0;
+    OF = 0;
+    SF = 0;
+}
+
+:add reg, imm32  is op8=0x05; imm32
+{
+    EAX = EAX + imm32;
+    CF = (EAX < imm32);
+    ZF = (EAX == 0);
+    SF = (EAX s< 0);
+}
+
+:cmp reg, imm32  is op8=0x3d; imm32
+{
+    # CMP writes flags and nothing else. Getting this wrong is the most common source of a wrong
+    # decompilation, because the subtraction is implied rather than stored.
+    local tmp:4 = EAX - imm32;
+    ZF = (tmp == 0);
+    SF = (tmp s< 0);
+    CF = (EAX < imm32);
+}
+
+:test reg, reg   is op8=0x85; modrm
+{
+    local tmp:4 = EAX & EAX;
+    ZF = (tmp == 0);
+    SF = (tmp s< 0);
+    CF = 0;
+    OF = 0;
+}
+
+:push reg        is op8=0x50; reg
+{
+    ESP = ESP - 4;
+    *[ram]:4 ESP = EAX;
+}
+
+:pop reg         is op8=0x58; reg
+{
+    EAX = *[ram]:4 ESP;
+    ESP = ESP + 4;
+}
+
+:lea reg, [reg + imm32]  is op8=0x8d; modrm; imm32
+{
+    # LEA computes an address without dereferencing. The p-code shows the addition and no load, which
+    # is the distinction that matters.
+    EAX = EAX + imm32;
+}
+
+:jmp imm32       is op8=0xe9; imm32
+{
+    goto imm32;
+}
+
+:je imm32        is op8=0x74; imm32
+{
+    if (ZF == 1) goto imm32;
+}
+
+:jne imm32       is op8=0x75; imm32
+{
+    if (ZF == 0) goto imm32;
+}
+
+:call imm32      is op8=0xe8; imm32
+{
+    ESP = ESP - 4;
+    *[ram]:4 ESP = inst_next;
+    call imm32;
+}
+
+:ret             is op8=0xc3
+{
+    return [ESP];
+}
+
+:nop             is op8=0x90
+{
+    # Nothing. Written explicitly rather than omitted, so the length table stays correct.
+}
+
+# ── The mirrored table ────────────────────────────────────────────────────────
+# The encode direction reads the same patterns in reverse: given a p-code operation and operands,
+# find the pattern whose body produces it. Nothing needs to be written twice; the symmetry is a
+# property of the table rather than a second file.
+#
+# This is the property that lets the vessel be built with no data. The structure is bidirectional from
+# the first commit, so a decode and an encode of the same bytes are provably the same mapping.
+
+# ── Analysis hooks ────────────────────────────────────────────────────────────
+# What the layer above asks this definition for. Each is a query over the p-code, not over the bytes.
+
+#   reachable(from)      which instructions can be reached, given a start point
+#   writes(reg)          which instructions write a register
+#   calls()              which instructions transfer control to a named target
+#   blocks()             basic blocks, split at every control-flow boundary
+#
+# None of these are implemented here. They are listed because the interface is the contract, and the
+# interface is what the TypeScript and Rust sides are written against.

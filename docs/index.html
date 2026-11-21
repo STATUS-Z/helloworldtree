@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hello World Tree — a vessel, not yet filled</title>
+<meta name="description" content="Artifact in, proof out. A substrate that renders what a system is rather than what it claims.">
+<meta name="theme-color" content="#030208">
+<style>:root{--void:#030208;--diox-a:#0b0414;--diox-b:#1a0a28;--hum:#e5007e;--hum-hot:#ff2d9b;--plum:#7a2350;--indigo:#2e3bff;--gold:#ffd400;--white:#fff;--type-grad:linear-gradient(180deg, #ffd400 0%, #fff 100%);--mono:"MedievalSharp", ui-monospace, monospace}*{box-sizing:border-box}html,body{background:var(--void);height:100%;color:var(--white);font-family:var(--mono);margin:0;overflow:hidden}#vessel{touch-action:none;width:100%;height:100%;display:block;position:fixed;inset:0}.ink{background-image:var(--type-grad);color:#0000;-webkit-text-fill-color:transparent;-webkit-background-clip:text;background-clip:text;display:inline-block}.ink-word{white-space:nowrap;display:inline-block}header{z-index:10;pointer-events:none;align-items:baseline;gap:18px;padding:22px clamp(18px,4vw,46px);display:flex;position:fixed;top:0;left:0;right:0}h1{letter-spacing:.14em;text-transform:uppercase;margin:0;font-size:clamp(1.1rem,2.4vw,1.6rem);font-weight:400}.kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--hum-hot);margin-bottom:6px;font-size:9px}footer{z-index:10;letter-spacing:.16em;text-transform:uppercase;pointer-events:none;flex-wrap:wrap;align-items:center;gap:16px;padding:18px clamp(18px,4vw,46px);font-size:10px;display:flex;position:fixed;bottom:0;left:0;right:0}#status{color:#ffd400;background:#030208db;border:1px solid #e5007e80;padding:7px 14px}.note{color:#ffffff6b}footer a{color:#ff2d9b;pointer-events:auto;text-decoration:none}footer a:hover{color:#fff}.grow{flex:1}@media (prefers-reduced-motion:reduce){#vessel{display:none}body:after{content:"static render — 19 languages registered, no flow";text-align:center;color:#ffd400;letter-spacing:.16em;place-items:center;padding:40px;font-size:13px;display:grid;position:fixed;inset:0}}</style>
+  <script type="module" crossorigin src="/helloworldtree/assets/index-Cc77Nadb.js"></script>
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/performanceConfigurator-fYuIgwDq.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/logger-CuBYPcDK.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/shaderStore-D-XQlhUT.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/tools.functions-DT6NTpoG.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/typeStore-Cu_sj2zM.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/tools-Cv08AAoz.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/dataBuffer-C-wqV4qF.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/rolldown-runtime-DK3Fl9T5.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/thinEngine-B3MSYecq.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/postprocess.vertex-CqEQ0GqR.js">
+  <link rel="modulepreload" crossorigin href="/helloworldtree/assets/postprocess.vertex-3K0axN5Y.js">
+</head>
+<body>
+
+<canvas id="vessel"></canvas>
+
+<header>
+  <div>
+    <div class="kicker">artifact in · proof out</div>
+    <h1>Hello World Tree</h1>
+  </div>
+</header>
+
+<footer>
+  <span id="status">loading</span>
+  <span class="note">a vessel, not yet filled</span>
+  <span class="grow"></span>
+  <a href="https://github.com/STATUS-Z/helloworldtree">repository</a>
+</footer>
+
+
+<script>
+  /* Per-character ink, applied once. The rules are the same as the portfolio's: a gradient across a
+     block is a brightness falloff, so every glyph gets its own ramp. */
+  (function () {
+    const targets = document.querySelectorAll("h1, #status, .note, .kicker, footer a");
+    for (const el of targets) {
+      const frag = document.createDocumentFragment();
+      for (const part of el.textContent.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) {
+          frag.appendChild(document.createTextNode(part));
+          continue;
+        }
+        const word = document.createElement("span");
+        word.className = "ink-word";
+        for (const ch of Array.from(part)) {
+          const s = document.createElement("span");
+          s.className = "ink";
+          s.textContent = ch;
+          word.appendChild(s);
+        }
+        frag.appendChild(word);
+      }
+      el.replaceChildren(frag);
+    }
+  })();
+</script>
+
+</body>
+</html>

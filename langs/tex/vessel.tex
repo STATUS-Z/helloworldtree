@@ -1,0 +1,196 @@
+%% Hello World Tree — TeX adapter.
+%%
+%% TeX is the emit language. Every other adapter in this repository reads an artifact; this one writes
+%% one. That asymmetry is deliberate and it is what closes the loop:
+%%
+%%   decode   artifact -> structure   (the other seventeen)
+%%   encode   structure -> artifact   (this one, plus SLEIGH's mirrored engine)
+%%
+%% A vessel that can only read is half a vessel. The moment you can emit the structure back as
+%% something a typesetting engine understands, you can produce a document — and a document is the one
+%% artifact form that survives being printed, archived, and read by a person who has no tooling at all.
+%%
+%% The macros here generate that document. They take the same node/edge shape every adapter emits, so a
+%% skeleton from any language can be rendered to a PDF with no intermediate format.
+
+\documentclass[10pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\geometry{letterpaper, margin=0.9in}
+
+%% ── The palette ─────────────────────────────────────────────────────────────
+%% The same values the web and the QML shell use, so a printed vessel is recognisably the same object.
+%% Dioxazine is far too dark for print, so it is approximated with a desaturated plum; the hum and the
+%% gold survive unchanged because they are the identity.
+
+\definecolor{void}{HTML}{030208}
+\definecolor{diox}{HTML}{1A0A28}
+\definecolor{hum}{HTML}{E5007E}
+\definecolor{humhot}{HTML}{FF2D9B}
+\definecolor{indigo}{HTML}{2E3BFF}
+\definecolor{gold}{HTML}{FFD400}
+\definecolor{typehi}{HTML}{FFFFFF}
+\definecolor{plum}{HTML}{7A2350}
+
+%% ── Node and edge tables ────────────────────────────────────────────────────
+%% The adapter's input. Populated by the emitter before the document is rendered, so a single invocation
+%% produces a complete artifact from a complete graph.
+%%
+%% Nodes carry no weight. A dead vessel has no data, so there is nothing to weight, and a weight field
+%% would invite values to be invented for it.
+
+\newcount\hwtnodecount
+\hwtnodecount=0
+
+\newcount\hwtedgecount
+\hwtedgecount=0
+
+%% \hwtaddnode{id}{kind}{label}
+\def\hwtaddnode#1#2#3{%
+  \global\advance\hwtnodecount by 1
+  \expandafter\gdef\csname hwtnode@\the\hwtnodecount @id\endcsname{#1}%
+  \expandafter\gdef\csname hwtnode@\the\hwtnodecount @kind\endcsname{#2}%
+  \expandafter\gdef\csname hwtnode@\the\hwtnodecount @label\endcsname{#3}%
+}
+
+%% \hwtaddedge{from}{to}{kind}
+\def\hwtaddedge#1#2#3{%
+  \global\advance\hwtedgecount by 1
+  \expandafter\gdef\csname hwtedge@\the\hwtedgecount @from\endcsname{#1}%
+  \expandafter\gdef\csname hwtedge@\the\hwtedgecount @to\endcsname{#2}%
+  \expandafter\gdef\csname hwtedge@\the\hwtedgecount @kind\endcsname{#3}%
+}
+
+%% ── Node styling ────────────────────────────────────────────────────────────
+%% Kind determines the mark. Size and colour, in that order of importance: a reader distinguishes
+%% differently-sized marks before they distinguish colours, which is why colour is the secondary channel
+%% and not the primary one.
+
+\def\hwtkindcolor#1{%
+  \def\tmp{#1}%
+  \ifx\tmp\hwtnodefile gold%
+  \else\ifx\tmp\hwtnodeimport indigo%
+  \else\ifx\tmp\hwtnodeinstruction plum%
+  \else humhot%
+  \fi\fi\fi
+}
+
+\def\hwtnodefile{file}
+\def\hwtnodeimport{import}
+\def\hwtnodeinstruction{instruction}
+
+%% \hwdrawnode{x}{y}{kind}{label}
+\def\hwdrawnode#1#2#3#4{%
+  \begin{scope}[shift={(#1,#2)}]
+    %% halo
+    \fill[\hwtkindcolor{#3}, opacity=0.18] (0,0) circle (0.62);
+    %% core
+    \fill[\hwtkindcolor{#3}] (0,0) circle (0.22);
+    %% label
+    \node[anchor=west, font=\ttfamily\tiny, text=black!80] at (0.34,0) {#4};
+  \end{scope}
+}
+
+%% ── The document ────────────────────────────────────────────────────────────
+
+\begin{document}
+
+\pagecolor{void}
+\color{typehi}
+
+\begin{center}
+  {\ttfamily\Large\bfseries HELLO WORLD TREE}\\[4pt]
+  {\ttfamily\small\color{gold} A VESSEL, NOT YET FILLED}
+\end{center}
+
+\vspace{6pt}
+
+%% The honest statement. On a dead vessel this is the single most important line in the document,
+%% because everything below it is structure without data and a reader needs to know that before they
+%% read anything into the shape.
+\begin{center}
+  {\ttfamily\footnotesize\color{humhot}%
+   \the\hwtnodecount\ nodes \quad \the\hwtedgecount\ edges \quad no flow}
+\end{center}
+
+\vspace{10pt}
+\hrule
+\vspace{10pt}
+
+%% ── The graph ───────────────────────────────────────────────────────────────
+%% Radial layout computed here rather than passed in, because the emitter should not have to know about
+%% paper size. Each node gets an angle from its index; nodes are placed on a ring sized to the count.
+%%
+%% The result is not a good layout for a large graph. It is a correct layout for a small one, and at
+%% this stage every vessel is small.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.86, transform shape]
+
+  \def\ringradius{4.6}
+  \pgfmathsetmacro{\step}{360/\the\hwtnodecount}
+
+  %% edges first, so nodes draw over them
+  \foreach \i in {1,...,\the\hwtedgecount} {%
+    \pgfmathsetmacro{\fx}{0}%
+    \pgfmathsetmacro{\fy}{0}%
+    \pgfmathsetmacro{\tx}{0}%
+    \pgfmathsetmacro{\ty}{0}%
+    %% A real emitter resolves node ids to coordinates before this point. The loop structure is here
+    %% so the shape of the document is visible; the resolution is the emitter's job, not TeX's.
+    \draw[indigo, opacity=0.22, line width=0.4pt] (\fx,\fy) -- (\tx,\ty);
+  }
+
+  %% nodes
+  \foreach \i in {1,...,\the\hwtnodecount} {%
+    \pgfmathsetmacro{\angle}{\i*\step}
+    \pgfmathsetmacro{\nx}{\ringradius*cos(\angle)}
+    \pgfmathsetmacro{\ny}{\ringradius*sin(\angle)}
+    \hwdrawnode{\nx}{\ny}%
+      {\csname hwtnode@\i @kind\endcsname}%
+      {\csname hwtnode@\i @label\endcsname}
+  }
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{10pt}
+\hrule
+\vspace{10pt}
+
+%% ── The structure, as text ──────────────────────────────────────────────────
+%% A printed graph is lossy: overlap hides nodes, and colour is unavailable in a photocopy. So the same
+%% structure is also emitted as a table, which is the form that survives being printed, scanned, and
+%% read by something that is not a person.
+%%
+%% This redundancy is deliberate. Every artifact the vessel emits should be legible in at least two
+%% channels, because any single channel fails eventually.
+
+\begin{center}
+{\ttfamily\footnotesize
+\begin{tabular}{@{}lll@{}}
+  \textbf{\color{gold}kind} & \textbf{\color{gold}label} & \textbf{\color{gold}id} \\
+  \hline
+  \foreach \i in {1,...,\the\hwtnodecount} {%
+    \csname hwtnode@\i @kind\endcsname &
+    \csname hwtnode@\i @label\endcsname &
+    \csname hwtnode@\i @id\endcsname \\
+  }
+\end{tabular}
+}
+\end{center}
+
+\vfill
+
+\begin{center}
+  {\ttfamily\tiny\color{plum}%
+   artifact in, proof out \quad · \quad reproducible evidence outranks documentation}
+\end{center}
+
+\end{document}

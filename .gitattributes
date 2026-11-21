@@ -1,0 +1,70 @@
+# Language detection.
+#
+# GitHub's bar is computed from BYTES, not file count. Nineteen one-line files would produce a bar
+# dominated by whatever happened to be largest, so each adapter here is a real implementation — and this
+# file makes sure they are all counted rather than excluded.
+#
+# The build output is explicitly marked generated, because it is: `docs/` is emitted by Vite and counting
+# it would report thousands of files of compiled JavaScript as the project's language, which is a lie
+# about what this repository is.
+
+# Build output is generated, not authored.
+docs/** linguist-generated=true
+docs/** linguist-vendored
+
+# Every adapter is source. Pinned so linguist cannot decide a small file is not "real".
+langs/typescript/** linguist-detectable=true
+langs/python/** linguist-detectable=true
+langs/sql/** linguist-detectable=true
+langs/c/** linguist-detectable=true
+langs/cpp/** linguist-detectable=true
+langs/csharp/** linguist-detectable=true
+langs/java/** linguist-detectable=true
+langs/perl/** linguist-detectable=true
+langs/ruby/** linguist-detectable=true
+langs/rust/** linguist-detectable=true
+langs/bash/** linguist-detectable=true
+langs/haskell/** linguist-detectable=true
+langs/lua/** linguist-detectable=true
+langs/qml/** linguist-detectable=true
+langs/assembly/** linguist-detectable=true
+langs/tex/** linguist-detectable=true
+langs/go/** linguist-detectable=true
+langs/vimscript/** linguist-detectable=true
+langs/sleigh/** linguist-detectable=true
+
+# SLEIGH is not a language GitHub knows. Declaring it explicitly is what puts it in the bar at all
+# instead of being counted as "Other".
+*.slaspec linguist-language=SLEIGH
+*.pspec   linguist-language=SLEIGH
+
+# Assembly has three extensions GitHub guesses between; pin the dialect.
+*.asm linguist-language=Assembly
+
+# QML files are QML, not JavaScript.
+*.qml linguist-language=QML
+
+# Vim script, not VimL's ambiguous default.
+*.vim linguist-language=Vim\ Script
+
+# Line endings. Deterministic, so a diff between two clones is meaningful.
+*.ts    text eol=lf
+*.py    text eol=lf
+*.sql   text eol=lf
+*.c     text eol=lf
+*.cpp   text eol=lf
+*.cs    text eol=lf
+*.java  text eol=lf
+*.pl    text eol=lf
+*.rb    text eol=lf
+*.rs    text eol=lf
+*.sh    text eol=lf
+*.hs    text eol=lf
+*.lua   text eol=lf
+*.qml   text eol=lf
+*.asm   text eol=lf
+*.tex   text eol=lf
+*.go    text eol=lf
+*.vim   text eol=lf
+*.slaspec text eol=lf
+*.pspec   text eol=lf

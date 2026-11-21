@@ -1,0 +1,101 @@
+# Hello World Tree — SLEIGH p-code specification.
+
+This is the universal middle. The .slaspec file says how to turn bytes into p-code; this says what
+p-code *means* once it exists, which is the half that makes the analysis portable.
+
+## Why this file exists separately
+
+A processor specification and the semantics of an intermediate language are different artifacts and
+they change for different reasons. A new CPU means a new .slaspec. A better data-flow analysis means a
+change here. Keeping them apart means adding an architecture never risks the analysis, and improving
+the analysis never risks a decoder.
+
+The naming is deliberate: `.slaspec` is the dialect, `.pspec` is the language the dialect translates
+into. One of each per architecture at most, and the `.pspec` is shared by all of them.
+
+## The instruction set of p-code
+
+p-code is small on purpose. Fourteen operations cover every instruction on every architecture:
+
+| Operation | Meaning | Why it is here |
+|---|---|---|
+| `COPY` | value to storage | the only way anything moves |
+| `LOAD` | memory to register | separates address computation from the read |
+| `STORE` | register to memory | the same, in reverse |
+| `BRANCH` | unconditional jump | control flow as data |
+| `CBRANCH` | conditional jump | the shape of every loop and every guard |
+| `BRANCHIND` | computed jump | switch tables, vtables, obfuscation |
+| `CALL` | transfer with return | the unit of interprocedural analysis |
+| `CALLIND` | computed call | indirect dispatch |
+| `RETURN` | leave a call | pairs with CALL |
+| `INT` | trap into the environment | syscalls and interrupts |
+| `INT_ZEXT` / `INT_SEXT` | integer widening | the source of every type confusion bug |
+| `INT_ADD` `INT_SUB` `INT_XOR` `INT_AND` `INT_OR` | arithmetic and logic | the actual computation |
+| `INT_MULT` `INT_DIV` `INT_REM` | multiplication and division | where overflow lives |
+| `INT_EQUAL` `INT_NOTEQUAL` `INT_LESS` `INT_SLESS` `INT_LESSEQUAL` `INT_SLESSEQUAL` | comparison | produces the flags |
+| `INT_ZEXT` `INT_SEXT` `INT_2COMP` `INT_NEGATE` | unary | sign handling |
+| `POPCOUNT` `LZCOUNT` | bit counting | obfuscation and crypto |
+| `PIECE` | concatenate two values | building wide values from parts |
+| `SUBPIECE` | extract a subrange | the reverse |
+| `CAST` | reinterpret bits | type punning |
+| `PTRADD` `PTRSUB` | pointer arithmetic | keeps address spaces distinct from integers |
+
+## The one rule that matters
+
+**Every operation is typed.** A p-code value has a size in bytes and a signedness. That is not
+decoration: a `LOAD` of four bytes from a pointer typed as `int *` is a different operation from a
+`LOAD` of four bytes from a pointer typed as `float *`, even though the bytes are identical. The type
+is what lets the analysis say "this is a float comparison" rather than "this compares two 32-bit
+integers", which is the difference between a correct decompilation and a plausible wrong one.
+
+## The two directions
+
+The same operation table is read in both directions:
+
+```
+  bytes  --[decode]-->  p-code  --[analyse]-->  structure
+  bytes  <--[encode]--  p-code  <--[synthesise]--  structure
+```
+
+Nothing in this file is direction-specific. That is what makes the mirrored engine a mirror rather
+than a second implementation: the decode pass and the encode pass walk the same table and disagree
+only about which end they started from.
+
+## What a consumer needs from this layer
+
+Four queries. Every analysis in the vessel is a composition of these:
+
+1. **`reachable(entry)`** — which instructions can be reached from a point. Produces the basic block
+   graph.
+2. **`writes(register)`** — which instructions write a given register. Produces the data flow edges.
+3. **`calls()`** — which instructions transfer control to a named target. Produces the call graph.
+4. **`blocks()`** — basic blocks, split at every control-flow boundary. Produces the unit that every
+   other pass iterates over.
+
+Everything above — the hierarchy, the superstate grouping, the visualisation — is built from these
+four and nothing else. That is the whole architecture.
+
+## Hierarchy, and why superstates exist
+
+A flattened basic block graph is technically complete and practically unreadable. A function with
+forty blocks and no grouping is a hairball.
+
+So the vessel groups blocks into **hierarchical states**:
+
+```
+  Superstate (the function)
+    ├─ State (an if-branch, or a loop body)
+    │    ├─ State (a nested guard)
+    │    └─ Block
+    └─ State (the else-branch)
+         └─ Block
+```
+
+The rule for forming a superstate is structural, not heuristic: two states merge when they share
+exactly one predecessor and one successor, which is the definition of a region with a single entry and
+a single exit. That is decidable, cheap, and produces the shape a reader expects without needing to
+guess at what the code was "for".
+
+A superstate is therefore not an inference about intent. It is a statement about control flow, which
+can be checked. That distinction is why this layer can be trusted when the layers above it are
+heuristic.
