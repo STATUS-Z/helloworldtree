@@ -108,6 +108,11 @@ nineteen equally-weighted languages is just a list.
 | **Go** | bridge | `go/ast` ships in the standard library. Correct parse, no dependency. |
 | **Vim Script** | bridge | Where you edit the vessel while looking at it. |
 
+**On the language bar.** GitHub reports **18** of these 19. SLEIGH is not in linguist's registry — verified
+against `languages.yml`, not assumed — so no attribute can surface it. The files are present, correct, and
+counted as Other; the bar simply cannot name a language GitHub does not have. Stating that here is better
+than a `.gitattributes` line that silently does nothing.
+
 ## The dead vessel
 
 A node in this repository has no weight field. That is not an omission. A weight of zero means
