@@ -33,10 +33,15 @@ langs/go/** linguist-detectable=true
 langs/vimscript/** linguist-detectable=true
 langs/sleigh/** linguist-detectable=true
 
-# SLEIGH is not a language GitHub knows. Declaring it explicitly is what puts it in the bar at all
-# instead of being counted as "Other".
-*.slaspec linguist-language=SLEIGH
-*.pspec   linguist-language=SLEIGH
+# SLEIGH is not a language GitHub knows. Verified against linguist's languages.yml: there is no
+# SLEIGH entry, so no attribute can put it in the bar. The extension stays correct for the ecosystem
+# (Ghidra and the SLEIGH compiler both use it), and the README states the limitation rather than
+# pretending the bar is complete.
+#
+# What is done instead: the files are marked detectable so their bytes are not silently discarded, and
+# `linguist-vendored=false` keeps them out of the vendor bucket.
+*.slaspec linguist-detectable=true -linguist-vendored
+*.pspec   linguist-detectable=true -linguist-vendored
 
 # Assembly has three extensions GitHub guesses between; pin the dialect.
 *.asm linguist-language=Assembly
@@ -44,8 +49,9 @@ langs/sleigh/** linguist-detectable=true
 # QML files are QML, not JavaScript.
 *.qml linguist-language=QML
 
-# Vim script, not VimL's ambiguous default.
-*.vim linguist-language=Vim\ Script
+# Vim script. The registered linguist name is lowercase "script" — "Vim Script" with a capital S is not
+# a key, and an unrecognised value is ignored silently, which is why this file was landing in Other.
+*.vim linguist-language=Vim script
 
 # Line endings. Deterministic, so a diff between two clones is meaningful.
 *.ts    text eol=lf
