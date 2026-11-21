@@ -49,11 +49,15 @@ langs/sleigh/** linguist-detectable=true
 # QML files are QML, not JavaScript.
 *.qml linguist-language=QML
 
-# Vim script. Linguist keys this language as "Vim script", but a value with a space in .gitattributes is
-# unreliable — it is parsed as a pattern/value pair and the space splits it. The registered ALIAS is
-# `viml`, which is single-token and resolves to the same language. That is why the earlier attempt left
-# the file in Other despite the key being correct.
+# Vim script. Linguist keys this language as "Vim script", but a value with a space does not parse in
+# .gitattributes — it is split into pattern/value pairs. `viml` is a registered ALIAS for the same
+# language and is single-token, so it resolves.
+#
+# Declared on the explicit path as well as the extension, because a later `*.vim text eol=lf` line
+# re-matches the file and gitattributes applies the last matching line per attribute. Repeating
+# linguist-language here guarantees it survives that.
 *.vim linguist-language=viml
+langs/vimscript/vessel.vim linguist-language=viml linguist-detectable=true
 
 # Line endings. Deterministic, so a diff between two clones is meaningful.
 *.ts    text eol=lf
