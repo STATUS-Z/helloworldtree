@@ -49,9 +49,11 @@ langs/sleigh/** linguist-detectable=true
 # QML files are QML, not JavaScript.
 *.qml linguist-language=QML
 
-# Vim script. The registered linguist name is lowercase "script" — "Vim Script" with a capital S is not
-# a key, and an unrecognised value is ignored silently, which is why this file was landing in Other.
-*.vim linguist-language=Vim script
+# Vim script. Linguist keys this language as "Vim script", but a value with a space in .gitattributes is
+# unreliable — it is parsed as a pattern/value pair and the space splits it. The registered ALIAS is
+# `viml`, which is single-token and resolves to the same language. That is why the earlier attempt left
+# the file in Other despite the key being correct.
+*.vim linguist-language=viml
 
 # Line endings. Deterministic, so a diff between two clones is meaningful.
 *.ts    text eol=lf
